@@ -8,9 +8,12 @@
 #include <fstream>
 using namespace std;
 
-#include "../common/symbol_table.hpp"
-#include "../common/section.hpp"
-#include "../common/relocation_table.hpp"
+#include "../common/code_component.hpp"
+
+struct UnresolvedExtern {
+  SymbolTableEntry *symbolTableEntry;
+  int fileNo;
+};
 
 class Linker {
   public:
@@ -26,6 +29,9 @@ class Linker {
 
   private:
 
+    bool hex_output;
+    bool relocatable;
+
     static SymbolTable *symbolTable;
 
     Linker() {}
@@ -33,6 +39,10 @@ class Linker {
     void operator=(Linker const&) = delete;
 
     unordered_map<string, uint32_t> sectionAddresses;
+    vector<uint32_t> predeterminedSectionStarts;
+    vector<uint32_t> predeterminedSectionEnds;
+
+    void checkForSectionAddressInterference(uint32_t start, uint32_t end);
 
     unordered_map<int, SymbolTable *> symbolTableMap;
     unordered_map<int, vector<Section *>> sectionsMap;
@@ -42,10 +52,30 @@ class Linker {
     unordered_map<string, int> sectionIndices; // section name -> index in combinedSections
     unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedSection; // fileNo -> section index -> combined section index
 
+    unordered_map<string, RelocationTable *> combinedRelocationTables; // section name -> combined relocation table
+    unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedRelocationTableStart; // fileNo -> section index -> combined relocation table start index
+    unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedRelocationTableEnd; // fileNo -> section index -> combined relocation table end index
+
     unordered_map<int, unordered_map<int, int>> fileToSectionToItsAddressInCombinedSection; // fileNo -> section index -> address in combined section
 
-    void combineSectionsWithSameNames();
+    unordered_map<string, vector<UnresolvedExtern *>> unresolvedExterns;
+
+    void combineSectionsWithSameNamesAndTheirRelocationTables();
     int combineAllSymbolTables();
+
+    bool checkIfSymbolIsInUnresolvedExterns(string symbol);
+    void addUnresolvedExtern(UnresolvedExtern *unresolvedExtern);
+
+    void updateRelocationTablesSymbolIndices(int oldSymbolIndex, int newSymbolIndex, int fileNo, int sectionIndex);
+
+    void combineSectionsAndRelTabs();
+    void calculateAndSetFinalAddressesForSections();
+    void addSectionsToSymbolTable();
+
+    int finalizeUnresolvedExterns();
+
+    void completeRelocations();
+    void printHexOutput(ofstream &output);
 };
 
 #endif

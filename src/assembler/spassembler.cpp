@@ -55,7 +55,6 @@ int SPAssembler::assemble(string input_file, string output_file) {
     return 1;
   }
   for(auto& component : codeComponents) {
-    cout << "Assembling " << component->getValue() << endl;
     component->analize();
     if(CodeComponent::checkFinished()) break;
   }
@@ -64,11 +63,16 @@ int SPAssembler::assemble(string input_file, string output_file) {
     return 1;
   }
 
+  int check = checkIfAllSymbolsAreDefined();
+  if(check != 0) return check;
+
   CodeComponent::sewLiteralPoolsToSections();
   CodeComponent::sewSymbolOffsetsToSections();
 
   ofstream outFile(output_file);
   CodeComponent::printToOutput(outFile);
+
+  cout << "Assembler: " << input_file << " assembled successfull." << endl;
 
   return 0;
 }
@@ -82,4 +86,16 @@ void SPAssembler::hoardOperand(Operand *operand) {
     hoardTail->next = operand;
     hoardTail = operand;
   }
+}
+
+int SPAssembler::checkIfAllSymbolsAreDefined() {
+
+  for(auto& symbolTableEntry : symbolTable->getTable()) {
+    if(!symbolTableEntry->isDefined) {
+      cout << "Error: Symbol " << symbolTableEntry->name << " is not defined." << endl;
+      return -1;
+    }
+  }
+
+  return 0;
 }

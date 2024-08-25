@@ -30,6 +30,8 @@ struct SymbolTableEntry {
   bool isExtern = false;
   bool isSection = false;
   SymbolTableForwardReference *forwardReference = nullptr;
+
+  bool edgecase12bit = false;
 };
 
 class SymbolTable {

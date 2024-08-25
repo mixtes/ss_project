@@ -14,7 +14,6 @@ void RelocationTable::addEntry(int sectionNdx, int offset, RelocationType type, 
 
 void RelocationTable::printToOutput(ofstream &output) {
 
-  cout << "Printing relocation table" << endl;
   //"Section  Offset  Type  Symbol"
   char header[4] = {'R', 'E', 'L', 'T'};
   output << header << endl;

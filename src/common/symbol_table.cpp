@@ -13,7 +13,7 @@ SymbolTableEntry* SymbolTable::getEntry(string name) {
 }
 
 SymbolTableEntry* SymbolTable::getEntry(int index) {
-  if(index < table.size()) {
+  if((size_t)index < table.size()) {
     return table[index];
   }
 
@@ -66,6 +66,7 @@ void SymbolTable::printCurrentTable() {
 void SymbolTable::extractSymbolTable(ifstream &input, int fileNo) {
   string line;
   SymbolTable *symbolTable = new SymbolTable();
+  linkerSymbolTables[fileNo] = symbolTable;
 
   istringstream iss;
 
@@ -87,8 +88,6 @@ void SymbolTable::extractSymbolTable(ifstream &input, int fileNo) {
 
     addEntryToLinkerSymbolTable(newEntry, fileNo);
   }
-
-  linkerSymbolTables[fileNo] = symbolTable;
 }
 
 void SymbolTable::changeSymbolNameToMakeItUnique(SymbolTableEntry *entry) {

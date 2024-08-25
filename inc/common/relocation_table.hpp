@@ -30,10 +30,37 @@ class RelocationTable {
 
     void printToOutput(ofstream &output);
 
+    int getTableSize() {
+      return table.size();
+    }
+
+    vector<RelocationTableEntry*> getTable() {
+      return table;
+    }
+
     static void extractRelocationTable(ifstream &input, int fileNo);
 
     static unordered_map<int, vector<RelocationTable*>> getFileNoToRelocationTablesMap() {
       return fileNoToRelocationTablesMap;
+    }
+    
+    void updateSectionIndex(int newSectionIndex) {
+      for(auto& entry : table) {
+        entry->sectionNdx = newSectionIndex;
+      }
+    }
+
+    // only linker uses this
+    void concatenateAnotherRelocationTable(RelocationTable *table) {
+      for(auto& entry : table->table) {
+        this->table.push_back(entry);
+      }
+    }
+
+    void increaseEntryOffsets(int offset) {
+      for(auto& entry : table) {
+        entry->offset += offset;
+      }
     }
 
     ~RelocationTable() {}

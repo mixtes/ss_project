@@ -73,9 +73,10 @@ void CodeComponent::printToOutput(ofstream &output) {
     if(enter != 0) {
       output << endl;
     }
-    cout << section->getName() << endl;
     section->getRelocationTable()->printToOutput(output);
   }
+
+  output.close();
 }
 
 void CodeComponent::backpatch(string symbol)
@@ -84,6 +85,17 @@ void CodeComponent::backpatch(string symbol)
   SymbolTableEntry *symbolTableEntry = symbolTable->getEntry(symbol);
   if(symbolTableEntry->forwardReference == nullptr) {
     return;
+  }
+
+  if(symbolTableEntry->absolute && symbolTableEntry->edgecase12bit) {
+    if(!valueWithin12BitRange(symbolTableEntry->value)) {
+      cout << "Assembler: Symbol " << symbol << " is absolute and referenced by symDispReg, but is not within 12 bit range." << endl;
+      exit(1);
+    }
+  }
+  if(!symbolTableEntry->absolute && symbolTableEntry->edgecase12bit) {
+    cout << "Assembler: Symbol " << symbol << " is not absolute and referenced by symDispReg." << endl;
+    exit(1);
   }
 
   int symbolIndex = symbolTableEntry->index;

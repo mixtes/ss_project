@@ -7,6 +7,12 @@ using namespace std;
 
 extern FILE* yyin;
 
+string convertStoO(const string &filename) {
+  string output = filename;
+  output.replace(output.end() - 1, output.end(), "o");
+  return output;
+}
+
 int main(int argc, char** argv) {
   if(argc < 2 || argc > 4) {
     cout << "Usage: " << argv[0] << " invalid" << endl;
@@ -19,8 +25,8 @@ int main(int argc, char** argv) {
     {0, 0 ,0 ,0}
   };
 
-  string output_file = "default.o";
   string input_file = argv[argc - 1];
+  string output_file = convertStoO(input_file);
 
   int option_index = 0;
   int c;
@@ -42,11 +48,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  cout << "Parsing started" << endl;
-
   int check = yyparse();
-
-  cout << "Parsing finished" << endl;
 
   fclose(yyin);
 

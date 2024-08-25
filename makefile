@@ -18,12 +18,16 @@ ASSEMBLER_OBJ_FILES = assembly_flex.yy.o assembly_bison.tab.o $(patsubst %.cpp, 
 # Object files for linker
 LINKER_OBJ_FILES = $(patsubst %.cpp, %.o, $(wildcard src/common/*.cpp src/linker/*.cpp))
 
+# Object files for emulator
+EMULATOR_OBJ_FILES = $(patsubst %.cpp, %.o, $(wildcard src/common/*.cpp src/emulator/*.cpp))
+
 # Executable names
 ASSEMBLER_EXEC = assembler
 LINKER_EXEC = linker
+EMULATOR_EXEC = emulator
 
-# Default target to build both executables
-all: $(ASSEMBLER_EXEC) $(LINKER_EXEC)
+# Default target to build all executables
+all: $(ASSEMBLER_EXEC) $(LINKER_EXEC) $(EMULATOR_EXEC)
 
 # Rule to generate the bison output files (runs before flex)
 $(BISON_C_OUTPUT) $(BISON_H_OUTPUT): $(BISON_SOURCE)
@@ -53,6 +57,20 @@ $(ASSEMBLER_EXEC): $(ASSEMBLER_OBJ_FILES)
 $(LINKER_EXEC): $(LINKER_OBJ_FILES)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
+# Linking all object files for emulator
+$(EMULATOR_EXEC): $(EMULATOR_OBJ_FILES)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+# Run assembler on all .s files in ./tests/nivo-a/ and output corresponding .o files
+assemble_tests:
+	for file in ./tests/nivo-a/*.s; do \
+		./$(ASSEMBLER_EXEC) -o $${file%.s}.o $$file; \
+	done
+
+# Run linker on all .o files in ./tests/nivo-a/
+link_tests:
+	./$(LINKER_EXEC) -hex -place=my_code@0x40000000 -place=math@0xF0000000 -o program.hex ./tests/nivo-a/*.o
+
 # Clean up
 clean:
-	rm -f $(ASSEMBLER_OBJ_FILES) $(LINKER_OBJ_FILES) $(ASSEMBLER_EXEC) $(LINKER_EXEC) $(LEX_C_OUTPUT) $(BISON_C_OUTPUT) $(BISON_H_OUTPUT) $(LEX_H_OUTPUT) *.o
+	rm -f $(ASSEMBLER_OBJ_FILES) $(LINKER_OBJ_FILES) $(EMULATOR_OBJ_FILES) $(ASSEMBLER_EXEC) $(LINKER_EXEC) $(EMULATOR_EXEC) $(LEX_C_OUTPUT) $(BISON_C_OUTPUT) $(BISON_H_OUTPUT) $(LEX_H_OUTPUT) *.o ./tests/nivo-a/*.o

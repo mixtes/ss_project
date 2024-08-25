@@ -1,0 +1,25 @@
+SYMT
+0	UND	0	0	0	0	1	0	1
+1	ABS	0	1	0	0	1	0	1
+2	value1	0	0	1	0	1	1	0
+3	isr	0	3	0	0	1	0	1
+4	isr_software	0	3	1	0	1	0	0
+
+UND 0 0
+
+RELT
+ENDR
+ABS 0 1
+
+RELT
+ENDR
+isr 28 3
+81 e0 1f fc 	81 e0 2f fc 
+92 1f 00 18 	92 2f 00 18 
+80 20 10 00 	93 2e 00 04 
+93 1e 00 04 	93 fe 00 04 
+cd ab 00 00 	02 00 00 00 
+
+RELT
+3	24	0	2
+ENDR

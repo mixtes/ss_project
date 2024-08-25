@@ -13,7 +13,7 @@ void Instruction::formInstructionAndAddToSection(Opcode opcode, uint8_t mod, uin
   instruction <<= 4;
   instruction |= operand3;
   instruction <<= 12;
-  instruction |= displacement;
+  instruction |= displacement & 0x0FFF;
 
   getCurrentSection()->addInstructionToSectionContent(instruction);
 }
@@ -130,7 +130,7 @@ int Instruction::loadOrJumpOrCallWithLiteral(Opcode opcode, uint8_t mod, uint8_t
   else {
     int memMod;
     opcode == CALL ? memMod = CALL_MEM_MOD : memMod = JMP_MEM_MOD;
-    if(opcode == LOAD) mod = LOAD_REGIND_MOD;
+    if(opcode == LOAD) { mod = LOAD_REGIND_MOD; memMod = 0; }
 
     getCurrentSection()->addLiteralToPool(literal);
     formInstructionAndAddToSection(opcode, mod | memMod, operand1, operand2, operand3, 0);
@@ -152,12 +152,16 @@ int Instruction::loadOrJumpOrCallWithSymbol(Opcode opcode, uint8_t mod, uint8_t 
     loadOrJumpOrCallWithLiteral(opcode, mod, operand1, operand2, operand3, literal);
   }
   else {
+    int memMod;
+    opcode == CALL ? memMod = CALL_MEM_MOD : memMod = JMP_MEM_MOD;
+    if(opcode == LOAD) { mod = LOAD_REGIND_MOD; memMod = 0; }
+
     if(entry->isDefined) {
       getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
-      formInstructionAndAddToSection(opcode, mod, operand1, operand2, operand3, 0);
+      formInstructionAndAddToSection(opcode, mod | memMod, operand1, operand2, operand3, 0);
     }
     else {
-      formInstructionWithForwardReference(opcode, mod, operand1, operand2, operand3, symbol);
+      formInstructionWithForwardReference(opcode, mod | memMod, operand1, operand2, operand3, symbol);
     } 
   }
 
@@ -486,8 +490,8 @@ int Instruction::ldHandler() {
     uint8_t gprB = stoi(operandValue);
 
     SymbolTableEntry *entry = symbolTable->getEntry(symbol);
-    if(entry != nullptr && entry->isDefined && entry->sectionNdx == getCurrentSectionNdx()) {
-      disp = entry->value - getCurrentSection()->getLocationCounter();
+    if(entry != nullptr && entry->isDefined && entry->absolute) {
+      disp = entry->value;
       if(valueWithin12BitRange(disp)) {
         formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gprB, 0, disp);
         return 0;
@@ -502,8 +506,10 @@ int Instruction::ldHandler() {
         entry = new SymbolTableEntry();
         entry->name = symbol;
         entry->isDefined = false;
+        entry->edgecase12bit = true;
         symbolTable->addEntry(entry);
       }
+      else entry->edgecase12bit = true;
       formInstructionWithForwardReference(LOAD, LOAD_REGIND_MOD, gpr, gprB, 0, symbol);
     }
   }
@@ -573,8 +579,8 @@ int Instruction::stHandler() {
     gprB = stoi(operandValue);
 
     SymbolTableEntry *entry = symbolTable->getEntry(symbol);
-    if(entry != nullptr && entry->isDefined && entry->sectionNdx == getCurrentSectionNdx()) {
-      disp = entry->value - getCurrentSection()->getLocationCounter();
+    if(entry != nullptr && entry->isDefined && entry->absolute) {
+      disp = entry->value;
       if(valueWithin12BitRange(disp)) {
         formInstructionAndAddToSection(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, disp);
         return 0;
@@ -589,8 +595,10 @@ int Instruction::stHandler() {
         entry = new SymbolTableEntry();
         entry->name = symbol;
         entry->isDefined = false;
+        entry->edgecase12bit = true;
         symbolTable->addEntry(entry);
       }
+      else entry->edgecase12bit = true;
       formInstructionWithForwardReference(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, symbol);
     }
   }

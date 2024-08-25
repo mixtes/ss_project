@@ -4,6 +4,12 @@ using namespace std;
 #include <getopt.h>
 #include <iostream>
 
+string convertStoO(const string &filename) {
+  string output = filename;
+  output.replace(output.end() - 1, output.end(), "o");
+  return output;
+}
+
 int main(int argc, char** argv) {
 
   Linker *linker = Linker::getInstance();
@@ -17,8 +23,8 @@ int main(int argc, char** argv) {
     {0, 0 ,0 ,0}
   };
 
-  string output_file = "default.o";
-  vector<string> input_files = {};
+  string output_file;
+  vector<string> input_files;
 
   unordered_map<string, uint32_t> section_addresses;
 
@@ -41,12 +47,19 @@ int main(int argc, char** argv) {
         string place_arg = optarg;
         uint32_t at_pos = place_arg.find('@');
         if (at_pos != string::npos) {
-          string section_name = place_arg.substr(0, at_pos);
-          unsigned long address = stoul(place_arg.substr(at_pos + 1), nullptr, 0);
-          section_addresses[section_name] = address;
+            string section_name = place_arg.substr(0, at_pos);  // Extract section name correctly
+            section_name = section_name.substr(5);  // Remove -- from the beginning
+
+            unsigned long address = stoul(place_arg.substr(at_pos + 1), nullptr, 16);  // Convert address to a number
+            if(address < 0x40000000) {
+              cerr << "Invalid address for section " << section_name << ". Address must be greater than or equal to 0x40000000." << endl;
+              return 1;
+            }
+            
+            section_addresses[section_name] = address;
         } else {
-          cerr << "Invalid format for --place option. Expected format: --place=<section_name>@<address>" << endl;
-          return 1;
+            cerr << "Invalid format for --place option. Expected format: --place=<section_name>@<address>" << endl;
+            return 1;
         }
         break;
       }
@@ -80,8 +93,14 @@ int main(int argc, char** argv) {
   }
 
   if(!hex_output && !relocatable) {
-    cerr << "Must specify output format: --hex or --relocatable" << endl;
+    cerr << "Must specify output format: -hex or -relocatable" << endl;
     return 1;
+  }
+
+  if(hex_output) {
+    output_file = "default_linker_output.hex";
+  } else {
+    output_file = "default_linker_output.o";
   }
 
   int check = linker->link(input_files, output_file, section_addresses, hex_output, relocatable);

@@ -53,6 +53,8 @@ class SPAssembler {
   vector<CodeComponent *> codeComponents;
 
   static SymbolTable *symbolTable;
+
+  int checkIfAllSymbolsAreDefined();
 };
 
 #endif

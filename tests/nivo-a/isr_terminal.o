@@ -1,0 +1,19 @@
+SYMT
+0	UND	0	0	0	0	1	0	1
+1	ABS	0	1	0	0	1	0	1
+2	isr	0	2	0	0	1	0	1
+3	isr_terminal	0	2	1	0	1	0	0
+
+UND 0 0
+
+RELT
+ENDR
+ABS 0 1
+
+RELT
+ENDR
+isr 4 2
+93 fe 00 04 	
+
+RELT
+ENDR

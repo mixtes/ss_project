@@ -52,6 +52,12 @@ class Section {
     //only linker uses this
     void concatenateAnotherSectionsContent(vector<uint8_t> content);
 
+    //only linker uses this
+    void setRelocationTable(RelocationTable *table) {
+      delete this->relocationTable;
+      this->relocationTable = table;
+    }
+
     RelocationTable *getRelocationTable() {
       return this->relocationTable;
     }

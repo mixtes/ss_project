@@ -1,0 +1,44 @@
+SYMT
+0	UND	0	0	0	0	1	0	1
+1	ABS	0	1	0	0	1	0	1
+2	isr_timer	0	0	1	0	1	1	0
+3	isr_terminal	0	0	1	0	1	1	0
+4	isr_software	0	0	1	0	1	1	0
+5	handler	0	6	1	0	1	0	0
+6	my_handler	0	6	0	0	1	0	1
+7	handle_timer	56	6	0	0	1	0	0
+8	handle_terminal	64	6	0	0	1	0	0
+9	handle_software	72	6	0	0	1	0	0
+10	finish	36	6	0	0	1	0	0
+
+UND 0 0
+
+RELT
+ENDR
+ABS 0 1
+
+RELT
+ENDR
+my_handler 68 6
+81 e0 1f fc 	81 e0 2f fc 
+90 12 00 00 	91 20 00 02 
+39 01 00 54 	91 20 00 03 
+39 01 00 44 	91 20 00 04 
+39 01 00 34 	93 2e 00 04 
+93 1e 00 04 	91 ee 00 08 
+96 0e 0f fc 	92 fe 0f f8 
+21 00 00 28 	30 00 0f e8 
+21 00 00 18 	30 00 0f e0 
+21 00 00 08 	30 00 0f d8 
+04 00 00 00 	09 00 00 00 
+03 00 00 00 	08 00 00 00 
+02 00 00 00 	07 00 00 00 
+
+RELT
+6	50	0	4
+6	54	0	9
+6	58	0	3
+6	5c	0	8
+6	60	0	2
+6	64	0	7
+ENDR
