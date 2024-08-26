@@ -17,6 +17,8 @@ using namespace std;
 #define STATUS_TIMER_INTERRUPT 0x02
 #define STATUS_INTERUPT_MASK 0x04
 
+#define START_ADDRESS 0x40000000
+
 struct CPU {
   int32_t reg[16];
   int32_t creg[3];
@@ -41,7 +43,7 @@ class Emulator {
     Terminal terminal;
     Timer timer;
 
-    Emulator() {}
+    Emulator() { cpu.reg[PC] = START_ADDRESS; }
     Emulator(Emulator const&) = delete;
     void operator=(Emulator const&) = delete;
 

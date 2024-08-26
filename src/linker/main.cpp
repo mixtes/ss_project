@@ -97,9 +97,9 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if(hex_output) {
+  if(hex_output && output_file.empty()) {
     output_file = "default_linker_output.hex";
-  } else {
+  } else if(relocatable && output_file.empty()) {
     output_file = "default_linker_output.o";
   }
 

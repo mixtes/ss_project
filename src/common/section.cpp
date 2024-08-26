@@ -1,6 +1,7 @@
 #include "../../inc/common/section.hpp"
 
-unordered_map<int, vector<Section *>> Section::fileNoToSectionsMap = unordered_map<int, vector<Section *>>();
+vector<unordered_map<int, Section *>> Section::fileNoToSectionsArray = vector<unordered_map<int, Section *>>();
+vector<vector<int>> Section::fileNoToSectionIndexArray = vector<vector<int>>();
 
 Section::Section(string name, int ndx) {
   this->name = name;
@@ -31,14 +32,14 @@ void Section::addInstructionToSectionContent(int32_t content) {
   this->locationCounter += 4;
 }
 
-void Section::addQuadbyteToSectionContentWithOffset(int32_t content, int offset) {
+void Section::addQuadbyteToSectionContentWithOffset(int32_t content, uint32_t offset) {
   this->content[offset] = content & 0xFF;
   this->content[offset + 1] = (content >> 8) & 0xFF;
   this->content[offset + 2] = (content >> 16) & 0xFF;
   this->content[offset + 3] = (content >> 24) & 0xFF;
 }
 
-void Section::changeDisplacementInInstruction(int32_t content, int offset) {
+void Section::changeDisplacementInInstruction(int32_t content, uint32_t offset) {
   //we are only changing the last 12 bits of the instruction
   this->content[offset + 2] = (content >> 8) & 0x0F;
   this->content[offset + 3] = content & 0xFF;
@@ -58,7 +59,7 @@ void Section::addSymbolOffset(int symbol, int offset) {
   symbolOffsets[symbol].push_back(offset);
 }
 
-void Section::extractSection(ifstream &input, int fileNo, string line) {
+int Section::extractSection(ifstream &input, int fileNo, string line) {
   istringstream iss(line);
   string sectionName;
   string hexNum;
@@ -81,18 +82,28 @@ void Section::extractSection(ifstream &input, int fileNo, string line) {
     if(line.empty()) {
       break;
     }
-    iss >> hexNum;
-    byte = stoi(hexNum, nullptr, 16);
+    iss.clear();
+    iss.str(line);
+    while(iss >> hexNum) {
+      byte = stoi(hexNum, nullptr, 16);
 
-    section->addByteToSectionContent(byte);
+      section->addByteToSectionContent(byte);
 
-    numberOfBytesToRead--;
+      numberOfBytesToRead--;
+      if(numberOfBytesToRead == 0) {
+        break;
+      }
+    }
     if(numberOfBytesToRead == 0) {
+      getline(input, line); // skip empty line
       break;
     }
   }
 
-  addSectionToMap(section, fileNo);
+  addSectionToArray(section, fileNo);
+  addSectionIndexToArray(sectionNdx, fileNo);
+
+  return sectionNdx;
 }
 
 void Section::concatenateAnotherSectionsContent(vector<uint8_t> content) {

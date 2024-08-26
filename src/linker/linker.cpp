@@ -16,16 +16,17 @@ int Linker::link(vector<string> input_files, string output_file, unordered_map<s
     }
 
     string line;
+    int sectionNdx;
 
     while(getline(input, line)) {
       if(line == "SYMT") {
         SymbolTable::extractSymbolTable(input, fileNo);
       }
       else if(line == "RELT") {
-        RelocationTable::extractRelocationTable(input, fileNo);
+        RelocationTable::extractRelocationTable(input, fileNo, sectionNdx);
       }
       else { // Section
-        Section::extractSection(input, fileNo, line);
+        sectionNdx = Section::extractSection(input, fileNo, line);
       }
     } 
     input.close();
@@ -34,9 +35,10 @@ int Linker::link(vector<string> input_files, string output_file, unordered_map<s
 
   this->sectionAddresses = sectionAddresses;
 
-  symbolTableMap = SymbolTable::getFileNoToSymbolTable();
-  sectionsMap = Section::getFileNoToSectionsMap();
-  relocationTableMap = RelocationTable::getFileNoToRelocationTablesMap();
+  symbolTableArray = SymbolTable::getFileNoToSymbolTable();
+  sectionsArray = Section::getFileNoToSectionsArray();
+  fileNoToSectionIndexArray = Section::getFileNoToSectionIndexArray();
+  relocationTableArray = RelocationTable::getFileNoToRelocationTablesArray();
 
   int check;
   combineSectionsWithSameNamesAndTheirRelocationTables();
@@ -82,45 +84,48 @@ void Linker::combineSectionsWithSameNamesAndTheirRelocationTables() {
 }
 
 int Linker::combineAllSymbolTables() {
-
-  int currentFileNo = 0;
   //static table will be used as the main table
   SymbolTable *bigSymbolTable = SymbolTable::getInstance();
-  int newSymbolIndex = bigSymbolTable->getTable().size(); // it won't be 0 because of the sections
 
-  while(symbolTableMap.find(currentFileNo) != symbolTableMap.end()) {
-    SymbolTable *smallSymbolTable = symbolTableMap[currentFileNo];
-    for(auto& symbolTableEntry : smallSymbolTable->getTable()) {
+  for(size_t currentFileNo = 0; currentFileNo < symbolTableArray.size(); currentFileNo++) {
+    SymbolTable *smallSymbolTable = symbolTableArray[currentFileNo];
+    for(auto& smallSymbolTableEntry : smallSymbolTable->getTable()) {
       
-      if(symbolTableEntry->isSection) {
+      if(smallSymbolTableEntry->isSection) {
         continue;
       }
 
-      int oldSymbolIndex = symbolTableEntry->index;
-      int oldSectionNdx = symbolTableEntry->sectionNdx;
+      int oldSymbolIndex = smallSymbolTableEntry->index;
+      int oldSectionNdx = smallSymbolTableEntry->sectionNdx;
       int newSectionNdx = fileToSectionToCombinedSection[currentFileNo][oldSectionNdx];
 
-      if(bigSymbolTable->getEntry(symbolTableEntry->name) != nullptr) {
-        if(bigSymbolTable->getEntry(symbolTableEntry->name)->global && symbolTableEntry->global) {
-          cout << "Error: Multiple global symbols with the same name. " << symbolTableEntry->name << endl;
+      SymbolTableEntry *bigSymbolTableEntry = bigSymbolTable->getEntry(smallSymbolTableEntry->name);
+      if(bigSymbolTableEntry != nullptr) {
+        if(bigSymbolTableEntry->global && smallSymbolTableEntry->global) {
+          cout << "Error: Multiple global symbols with the same name. " << smallSymbolTableEntry->name << endl;
           return -1;
         }
-        if(bigSymbolTable->getEntry(symbolTableEntry->name)->global && symbolTableEntry->isExtern && !relocatable) {
+        if(bigSymbolTableEntry->global && smallSymbolTableEntry->isExtern && hex_output) {
           updateRelocationTablesSymbolIndices(  
-            oldSymbolIndex, bigSymbolTable->getEntry(symbolTableEntry->name)->index,
-            currentFileNo, newSectionNdx
+            oldSymbolIndex, bigSymbolTableEntry->index,
+            currentFileNo, oldSectionNdx
           );
           continue;
         }
-        smallSymbolTable->changeSymbolNameToMakeItUnique(symbolTableEntry);
+        if(smallSymbolTableEntry->global || smallSymbolTableEntry->isExtern) {
+          bigSymbolTable->changeSymbolNameToMakeItUnique(bigSymbolTableEntry);
+          continue;
+        }
+        smallSymbolTable->changeSymbolNameToMakeItUnique(smallSymbolTableEntry);
       }
 
       SymbolTableEntry *newEntry = new SymbolTableEntry();
-      if(symbolTableEntry->isExtern) {
-        newEntry->index = symbolTableEntry->index;
-        newEntry->sectionNdx = symbolTableEntry->sectionNdx;
+      if(smallSymbolTableEntry->isExtern) {
+        newEntry->index = smallSymbolTableEntry->index;
+        newEntry->sectionNdx = 0;
+        newEntry->isDefined = true;
         newEntry->isExtern = true;
-        newEntry->name = symbolTableEntry->name;
+        newEntry->name = smallSymbolTableEntry->name;
 
         UnresolvedExtern *unresolvedExtern = new UnresolvedExtern();
         unresolvedExtern->symbolTableEntry = newEntry;
@@ -129,42 +134,39 @@ int Linker::combineAllSymbolTables() {
       }
       else {
         int calculatedValue;
-        if(symbolTableEntry->absolute) {
-          calculatedValue = symbolTableEntry->value;
+        if(smallSymbolTableEntry->absolute) {
+          calculatedValue = smallSymbolTableEntry->value;
         }
         else {
-          // value = value + address of the section in the combined section + address of the combined section
-          calculatedValue = symbolTableEntry->value + fileToSectionToItsAddressInCombinedSection[currentFileNo][symbolTableEntry->sectionNdx] 
-          + combinedSections[smallSymbolTable->getEntry(symbolTableEntry->sectionNdx)->name]->getSectionFinalAddress(); //ERROR HERE
+          // calculatedValue = value + address of the section in the combined section + address of the combined section
+          calculatedValue = smallSymbolTableEntry->value + fileToSectionToItsAddressInCombinedSection[currentFileNo][smallSymbolTableEntry->sectionNdx] 
+          + combinedSections[smallSymbolTable->getEntry(smallSymbolTableEntry->sectionNdx)->name]->getSectionFinalAddress(); 
         }
 
-        updateRelocationTablesSymbolIndices(  
-          oldSymbolIndex, newSymbolIndex,
-          currentFileNo, newSectionNdx
+        updateRelocationTablesSymbolIndices( //ERROR HERE
+          oldSymbolIndex, bigSymbolTable->getSize(),
+          currentFileNo, oldSectionNdx
         );
 
         //index is given to an entry automatically in addEntry function
         newEntry->sectionNdx = newSectionNdx;
-        newEntry->name = symbolTableEntry->name;
+        newEntry->name = smallSymbolTableEntry->name;
         newEntry->value = calculatedValue;
-        newEntry->global = symbolTableEntry->global;
+        newEntry->global = smallSymbolTableEntry->global;
         newEntry->isDefined = true;
         bigSymbolTable->addEntry(newEntry);
 
         if(newEntry->global && checkIfSymbolIsInUnresolvedExterns(newEntry->name)) {
           for(auto& unresolvedExternEntry : unresolvedExterns[newEntry->name]) {
             updateRelocationTablesSymbolIndices(  
-              unresolvedExternEntry->symbolTableEntry->index, newSymbolIndex,
-              unresolvedExternEntry->fileNo, fileToSectionToCombinedSection[unresolvedExternEntry->fileNo][unresolvedExternEntry->symbolTableEntry->sectionNdx]
+              unresolvedExternEntry->symbolTableEntry->index, bigSymbolTable->getSize(),
+              unresolvedExternEntry->fileNo, unresolvedExternEntry->symbolTableEntry->sectionNdx
             );
           }
           unresolvedExterns.erase(newEntry->name);
         }
-
-        newSymbolIndex++;
       }
     }
-    currentFileNo++;
   }
 
   int check = finalizeUnresolvedExterns();
@@ -176,41 +178,46 @@ int Linker::combineAllSymbolTables() {
 }
 
 void Linker::combineSectionsAndRelTabs() {
-  int nextFileNo = 0;
-  vector<Section *> sections;
-  vector<RelocationTable *> relocationTables;
-  while(sectionsMap.find(nextFileNo) != sectionsMap.end()) {
-    sections = sectionsMap[nextFileNo];
-    relocationTables = relocationTableMap[nextFileNo];
-    for(size_t i = 0; i < sections.size(); i++) {
-      if(combinedSections.find(sections[i]->getName()) == combinedSections.end()) {
 
-        combinedSections[sections[i]->getName()] = sections[i];
-        sectionIndices[sections[i]->getName()] = combinedSections.size() - 1;
-        fileToSectionToCombinedSection[nextFileNo][sections[i]->getNdx()] = sectionIndices[sections[i]->getName()];
+  unordered_map<int, Section *> sections;
+  vector<int> currentFileSectionIndices;
+  unordered_map<int, RelocationTable *> relocationTables;
 
-        fileToSectionToItsAddressInCombinedSection[nextFileNo][sections[i]->getNdx()] = 0;
+  for(size_t currentFileNo = 0; currentFileNo < sectionsArray.size(); currentFileNo++) {
+    sections = sectionsArray[currentFileNo];
+    currentFileSectionIndices = fileNoToSectionIndexArray[currentFileNo];
+    relocationTables = relocationTableArray[currentFileNo];
+    for(size_t i = 0; i < currentFileSectionIndices.size(); i++) {
+      int csi = currentFileSectionIndices[i]; //csi == currentSectionIndex
+      if(combinedSections.find(sections[csi]->getName()) == combinedSections.end()) {
 
-        relocationTables[i]->updateSectionIndex(sectionIndices[sections[i]->getName()]);
-        combinedRelocationTables[sections[i]->getName()] = relocationTables[i];
-        fileToSectionToCombinedRelocationTableStart[nextFileNo][sections[i]->getNdx()] = 0;
-        fileToSectionToCombinedRelocationTableEnd[nextFileNo][sections[i]->getNdx()] = relocationTables[i]->getTableSize();
+        combinedSections[sections[csi]->getName()] = sections[csi];
+        combinedSectionsInOrder.push_back(sections[csi]);
+        sectionIndices[sections[csi]->getName()] = combinedSections.size() - 1;
+        fileToSectionToCombinedSection[currentFileNo][sections[csi]->getNdx()] = sectionIndices[sections[csi]->getName()];
+
+        fileToSectionToItsAddressInCombinedSection[currentFileNo][sections[csi]->getNdx()] = 0;
+
+        relocationTables[csi]->updateSectionIndex(sectionIndices[sections[csi]->getName()]);
+        combinedRelocationTables[sections[csi]->getName()] = relocationTables[csi];
+        combinedRelocationTablesInOrder.push_back(relocationTables[csi]);
+        fileToSectionToCombinedRelocationTableStart[currentFileNo][sections[csi]->getNdx()] = 0;
+        fileToSectionToCombinedRelocationTableEnd[currentFileNo][sections[csi]->getNdx()] = relocationTables[csi]->getTableSize();
       }
       else {
-        Section *combinedSection = combinedSections[sections[i]->getName()];
-        combinedSection->concatenateAnotherSectionsContent(sections[i]->getContent());
-        fileToSectionToCombinedSection[nextFileNo][sections[i]->getNdx()] = sectionIndices[sections[i]->getName()];
+        Section *combinedSection = combinedSections[sections[csi]->getName()];
+        combinedSection->concatenateAnotherSectionsContent(sections[csi]->getContent());
+        fileToSectionToCombinedSection[currentFileNo][sections[csi]->getNdx()] = sectionIndices[sections[csi]->getName()];
 
-        fileToSectionToItsAddressInCombinedSection[nextFileNo][sections[i]->getNdx()] = combinedSection->getSize();
-        relocationTables[i]->increaseEntryOffsets(combinedSection->getSize());
+        fileToSectionToItsAddressInCombinedSection[currentFileNo][sections[csi]->getNdx()] = combinedSection->getSize();
+        relocationTables[csi]->increaseEntryOffsets(combinedSection->getSize());
 
-        combinedSection->increaseSize(sections[i]->getSize());
-        fileToSectionToCombinedRelocationTableStart[nextFileNo][sections[i]->getNdx()] = combinedRelocationTables[sections[i]->getName()]->getTableSize();
-        combinedRelocationTables[sections[i]->getName()]->concatenateAnotherRelocationTable(relocationTables[i]);
-        fileToSectionToCombinedRelocationTableEnd[nextFileNo][sections[i]->getNdx()] = combinedRelocationTables[sections[i]->getName()]->getTableSize();
+        combinedSection->increaseSize(sections[csi]->getSize());
+        fileToSectionToCombinedRelocationTableStart[currentFileNo][sections[csi]->getNdx()] = combinedRelocationTables[sections[csi]->getName()]->getTableSize();
+        combinedRelocationTables[sections[csi]->getName()]->concatenateAnotherRelocationTable(relocationTables[csi]);
+        fileToSectionToCombinedRelocationTableEnd[currentFileNo][sections[csi]->getNdx()] = combinedRelocationTables[sections[csi]->getName()]->getTableSize();
       }
     }
-    nextFileNo++;
   }
 }
 
@@ -228,10 +235,10 @@ void Linker::checkForSectionAddressInterference(uint32_t start, uint32_t end) {
 void Linker::calculateAndSetFinalAddressesForSections() {
 
   uint32_t maxPredeterminedAddress = 0x40000000;
-  uint32_t placeForNextNonPredeterminedSection = 0;
+  uint32_t placeForNextNonPredeterminedSection = 0x40000000;
 
-  for(auto& combinedSection : combinedSections) {
-    string sectionName = combinedSection.first;
+  for(auto& combinedSection : combinedSectionsInOrder) {
+    string sectionName = combinedSection->getName();
 
     if(sectionAddresses.find(sectionName) != sectionAddresses.end()) {
 
@@ -251,23 +258,23 @@ void Linker::calculateAndSetFinalAddressesForSections() {
     }
   }
   
-  for(auto& combinedSection : combinedSections) {
-    string sectionName = combinedSection.first;
+  for(auto& combinedSection : combinedSectionsInOrder) {
+    string sectionName = combinedSection->getName();
     
     if(sectionAddresses.find(sectionName) == sectionAddresses.end()) {
-      combinedSection.second->setSectionFinalAddress(placeForNextNonPredeterminedSection);
+      combinedSection->setSectionFinalAddress(placeForNextNonPredeterminedSection);
       combinedRelocationTables[sectionName]->increaseEntryOffsets(placeForNextNonPredeterminedSection);
-      placeForNextNonPredeterminedSection += combinedSection.second->getSize();
+      placeForNextNonPredeterminedSection += combinedSection->getSize();
     }
   }
 }
 
 void Linker::addSectionsToSymbolTable() {
   SymbolTable *symbolTable = SymbolTable::getInstance();
-  for(auto& combinedSection : combinedSections) {
+  for(auto& combinedSection : combinedSectionsInOrder) {
     SymbolTableEntry *newEntry = new SymbolTableEntry();
-    newEntry->name = combinedSection.first;
-    newEntry->value = combinedSection.second->getSectionFinalAddress();
+    newEntry->name = combinedSection->getName();
+    newEntry->value = combinedSection->getSectionFinalAddress();
     newEntry->isDefined = true;
     newEntry->isSection = true;
     symbolTable->addEntry(newEntry);
@@ -288,7 +295,7 @@ int Linker::finalizeUnresolvedExterns() {
       for(auto& unresolvedExternEntry : unresolvedExtern.second) {
         updateRelocationTablesSymbolIndices(
           unresolvedExternEntry->symbolTableEntry->index, bigSymbolTable->getSize(),
-          unresolvedExternEntry->fileNo, fileToSectionToCombinedSection[unresolvedExternEntry->fileNo][unresolvedExternEntry->symbolTableEntry->sectionNdx]
+          unresolvedExternEntry->fileNo, unresolvedExternEntry->symbolTableEntry->sectionNdx
         );
       }
 
@@ -326,26 +333,26 @@ void Linker::updateRelocationTablesSymbolIndices(int oldSymbolIndex, int newSymb
   int end = fileToSectionToCombinedRelocationTableEnd[fileNo][sectionIndex];
 
   for(int i = start; i < end; i++) {
-    if(combinedRelocationTables[combinedSections[sectionsMap[fileNo][sectionIndex]->getName()]->getName()]->getTable()[i]->symbolIndex == oldSymbolIndex) {
-      combinedRelocationTables[combinedSections[sectionsMap[fileNo][sectionIndex]->getName()]->getName()]->getTable()[i]->symbolIndex = newSymbolIndex;
+    if(combinedRelocationTables[sectionsArray[fileNo][sectionIndex]->getName()]->getTable()[i]->symbolIndex == oldSymbolIndex) {
+      combinedRelocationTables[sectionsArray[fileNo][sectionIndex]->getName()]->getTable()[i]->symbolIndex = newSymbolIndex;
     }
   }
 }
 
 void Linker::completeRelocations() {
   SymbolTable *symbolTable = SymbolTable::getInstance();
-  for(auto& combinedRelocationTable : combinedRelocationTables) {
-    Section *section = combinedSections[combinedRelocationTable.first];
-    for(auto& relocationTableEntry : combinedRelocationTable.second->getTable()) {
-      section->addQuadbyteToSectionContentWithOffset(symbolTable->getEntry(relocationTableEntry->symbolIndex)->value, relocationTableEntry->offset);
+  for(size_t i = 0; i < combinedRelocationTablesInOrder.size(); i++) {
+    Section *section = combinedSectionsInOrder[i];
+    for(auto& relocationTableEntry : combinedRelocationTablesInOrder[i]->getTable()) {
+      section->addQuadbyteToSectionContentWithOffset(symbolTable->getEntry(relocationTableEntry->symbolIndex)->value, (uint32_t)relocationTableEntry->offset - section->getSectionFinalAddress());
     }
   }
 }
 
 void Linker::printHexOutput(ofstream &output) {
-  for(auto& combinedSection : combinedSections) {
-    uint32_t sectionAddress = combinedSection.second->getSectionFinalAddress();
-    vector<uint8_t> content = combinedSection.second->getContent();
+  for(auto& combinedSection : combinedSectionsInOrder) {
+    uint32_t sectionAddress = combinedSection->getSectionFinalAddress();
+    vector<uint8_t> content = combinedSection->getContent();
 
     for(size_t i = 0; i < content.size(); i++) {
       

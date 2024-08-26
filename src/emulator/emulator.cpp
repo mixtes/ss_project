@@ -48,7 +48,7 @@ void Emulator::printFinishingState() {
   cout << "Emulated processor executed halt instruction" << endl;
   cout << "Emulated processor state: " << endl;
 
-  //expected output format: 
+  // expected output format: 
   // r0=0x00000000   r1=0x00000000    r2=0x00000000   r3=0x00000000
   // r4=0x00000000   r5=0x00000000    r6=0x00000000   r7=0x00000000
   // r8=0x00000000   r9=0x00000000   r10=0x00000000  r11=0x00000000
@@ -59,8 +59,8 @@ void Emulator::printFinishingState() {
     ss << "r" << i;
     string reg = ss.str();
 
-    cout << setw(3) << right << setfill(' ') << reg << "=0x" << hex << cpu.reg[i] << "\t";
-    
+    cout << setw(3) << right << setfill(' ') << reg << "=0x" << hex << setw(8) << cpu.reg[i] << "\t";
+
     if(i % 4 == 3) cout << endl;
   }
 }
@@ -191,7 +191,6 @@ int Emulator::callHandler(int32_t instruction) {
 
   int REGA = getInstructionREGA(instruction);
   int REGB = getInstructionREGB(instruction);
-  int REGC = getInstructionREGC(instruction);
   int DISP = getInstructionDISP(instruction);
 
   cpu.reg[SP] -= 4;

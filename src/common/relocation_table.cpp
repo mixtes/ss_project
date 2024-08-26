@@ -1,6 +1,6 @@
 #include "../../inc/common/relocation_table.hpp"
 
-unordered_map<int, vector<RelocationTable*>> RelocationTable::fileNoToRelocationTablesMap = unordered_map<int, vector<RelocationTable*>>();
+vector<unordered_map<int, RelocationTable*>> RelocationTable::fileNoToRelocationTablesArray = vector<unordered_map<int, RelocationTable*>>();
 
 void RelocationTable::addEntry(int sectionNdx, int offset, RelocationType type, int symbolIndex) {
 
@@ -26,7 +26,7 @@ void RelocationTable::printToOutput(ofstream &output) {
   output << header << endl;
 }
 
-void RelocationTable::extractRelocationTable(ifstream &input, int fileNo) {
+void RelocationTable::extractRelocationTable(ifstream &input, int fileNo, int sectionNdx) {
   string line;
   string hexNum;
   int relocationType;
@@ -38,6 +38,7 @@ void RelocationTable::extractRelocationTable(ifstream &input, int fileNo) {
     if(line == "ENDR") {
       break;
     }
+    iss.clear();
     iss.str(line);
     RelocationTableEntry *entry = new RelocationTableEntry();
 
@@ -54,5 +55,5 @@ void RelocationTable::extractRelocationTable(ifstream &input, int fileNo) {
     relcoationTable->table.push_back(entry);
   }
 
-  addRelocationTableToMap(fileNo, relcoationTable);
+  addRelocationTableToArray(fileNo, relcoationTable, sectionNdx);
 }

@@ -49,7 +49,7 @@ class SymbolTable {
     }
 
     void addEntry(SymbolTableEntry *entry) {
-      entry->index = table.size();
+      entry->index = this->getSize();
       table.push_back(entry);
       tableMap[entry->name] = entry;
     }
@@ -70,7 +70,7 @@ class SymbolTable {
 
     void changeSymbolNameToMakeItUnique(SymbolTableEntry *entry);
 
-    static unordered_map<int, SymbolTable *> getFileNoToSymbolTable() {
+    static vector<SymbolTable *> getFileNoToSymbolTable() {
       return linkerSymbolTables;
     }
 
@@ -90,7 +90,7 @@ class SymbolTable {
 
     vector<Section *> sectionsList;
 
-    static unordered_map<int, SymbolTable *> linkerSymbolTables;
+    static vector<SymbolTable *> linkerSymbolTables;
 
     static void addEntryToLinkerSymbolTable(SymbolTableEntry *entry, int fileNo) {
       linkerSymbolTables[fileNo]->addEntry(entry);

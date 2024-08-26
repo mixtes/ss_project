@@ -38,10 +38,10 @@ class RelocationTable {
       return table;
     }
 
-    static void extractRelocationTable(ifstream &input, int fileNo);
+    static void extractRelocationTable(ifstream &input, int fileNo, int sectionNdx);
 
-    static unordered_map<int, vector<RelocationTable*>> getFileNoToRelocationTablesMap() {
-      return fileNoToRelocationTablesMap;
+    static vector<unordered_map<int, RelocationTable*>> getFileNoToRelocationTablesArray() {
+      return fileNoToRelocationTablesArray;
     }
     
     void updateSectionIndex(int newSectionIndex) {
@@ -69,12 +69,12 @@ class RelocationTable {
 
     vector<RelocationTableEntry*> table;
 
-    static unordered_map<int, vector<RelocationTable*>> fileNoToRelocationTablesMap;
-    static void addRelocationTableToMap(int fileNo, RelocationTable *table) {
-      if(fileNoToRelocationTablesMap.find(fileNo) == fileNoToRelocationTablesMap.end()) {
-        fileNoToRelocationTablesMap[fileNo] = vector<RelocationTable*>();
+    static vector<unordered_map<int, RelocationTable*>> fileNoToRelocationTablesArray;
+    static void addRelocationTableToArray(int fileNo, RelocationTable *table, int sectionNdx) {
+      if(fileNoToRelocationTablesArray.size() <= (size_t)fileNo) {
+        fileNoToRelocationTablesArray.resize(fileNo + 1);
       }
-      fileNoToRelocationTablesMap[fileNo].push_back(table);
+      fileNoToRelocationTablesArray[fileNo][sectionNdx] = table;
     }
 };
 

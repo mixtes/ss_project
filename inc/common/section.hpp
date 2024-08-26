@@ -12,8 +12,7 @@ class Section {
     Section(string name, int ndx);
 
     //only linker uses this
-    Section(string name, int ndx, int size) {
-      Section(name, ndx);
+    Section(string name, int ndx, int size) : Section(name, ndx) {
       this->size = size;
       this->locationCounter = size;
     }
@@ -24,9 +23,9 @@ class Section {
 
     void addInstructionToSectionContent(int32_t content);
 
-    void addQuadbyteToSectionContentWithOffset(int32_t content, int offset);
+    void addQuadbyteToSectionContentWithOffset(int32_t content, uint32_t offset);
 
-    void changeDisplacementInInstruction(int32_t content, int offset);
+    void changeDisplacementInInstruction(int32_t content, uint32_t offset);
 
     string getName() {
       return this->name;
@@ -86,10 +85,14 @@ class Section {
       return this->content;
     }
 
-    static void extractSection(ifstream &input, int fileNo, string line);
+    static int extractSection(ifstream &input, int fileNo, string line);
 
-    static unordered_map<int, vector<Section *>> getFileNoToSectionsMap() {
-      return fileNoToSectionsMap;
+    static vector<unordered_map<int, Section *>> getFileNoToSectionsArray() {
+      return fileNoToSectionsArray;
+    }
+
+    static vector<vector<int>> getFileNoToSectionIndexArray() {
+      return fileNoToSectionIndexArray;
     }
 
     void setSectionFinalAddress(uint32_t address) {
@@ -114,12 +117,21 @@ class Section {
     unordered_map<int, vector<int>> literalPool; // <literal value, vector of offsets>
     unordered_map<int, vector<int>> symbolOffsets; // <symbol index in SymbolTable, vector of offsets>
 
-    static unordered_map<int, vector<Section *>> fileNoToSectionsMap;
-    static void addSectionToMap(Section *section, int fileNo) {
-      if(fileNoToSectionsMap.find(fileNo) == fileNoToSectionsMap.end()) {
-        fileNoToSectionsMap[fileNo] = vector<Section *>();
+    static vector<unordered_map<int, Section *>> fileNoToSectionsArray;
+    static vector<vector<int>> fileNoToSectionIndexArray;
+
+    static void addSectionToArray(Section *section, int fileNo) {
+      if(fileNoToSectionsArray.size() <= (size_t)fileNo) {
+        fileNoToSectionsArray.resize(fileNo + 1);
       }
-      fileNoToSectionsMap[fileNo].push_back(section);
+      fileNoToSectionsArray[fileNo][section->getNdx()] = section;
+    }
+
+    static void addSectionIndexToArray(int sectionIndex, int fileNo) {
+      if(fileNoToSectionIndexArray.size() <= (size_t)fileNo) {
+        fileNoToSectionIndexArray.resize(fileNo + 1);
+      }
+      fileNoToSectionIndexArray[fileNo].push_back(sectionIndex);
     }
 
     //either user determines the final address or linker does (unnecessary for assembler)

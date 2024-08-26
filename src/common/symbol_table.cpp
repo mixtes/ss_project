@@ -1,6 +1,6 @@
 #include "../../inc/common/symbol_table.hpp"
 
-unordered_map<int, SymbolTable *> SymbolTable::linkerSymbolTables = unordered_map<int, SymbolTable *>();
+vector<SymbolTable *> SymbolTable::linkerSymbolTables = vector<SymbolTable *>();
 int SymbolTable::globalUniqueIndex = 0;
 
 SymbolTableEntry* SymbolTable::getEntry(string name) {
@@ -66,17 +66,25 @@ void SymbolTable::printCurrentTable() {
 void SymbolTable::extractSymbolTable(ifstream &input, int fileNo) {
   string line;
   SymbolTable *symbolTable = new SymbolTable();
+  if(linkerSymbolTables.size() <= (size_t)fileNo) {
+    linkerSymbolTables.resize(fileNo + 1);
+  }
   linkerSymbolTables[fileNo] = symbolTable;
 
   istringstream iss;
+
+  int skipIndex;
 
   while(getline(input, line)) {
     if(line.empty()) {
       break;
     }
+    iss.clear();
     iss.str(line);
+
     SymbolTableEntry *newEntry = new SymbolTableEntry();
-    
+
+    iss >> skipIndex;
     iss >> newEntry->name;
     iss >> newEntry->value;
     iss >> newEntry->sectionNdx;

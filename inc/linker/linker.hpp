@@ -44,15 +44,18 @@ class Linker {
 
     void checkForSectionAddressInterference(uint32_t start, uint32_t end);
 
-    unordered_map<int, SymbolTable *> symbolTableMap;
-    unordered_map<int, vector<Section *>> sectionsMap;
-    unordered_map<int, vector<RelocationTable *>> relocationTableMap;
+    vector<SymbolTable *> symbolTableArray;
+    vector<unordered_map<int, Section *>> sectionsArray;
+    vector<unordered_map<int, RelocationTable *>> relocationTableArray;
+    vector<vector<int>> fileNoToSectionIndexArray;
 
     unordered_map<string, Section *> combinedSections;
+    vector<Section *> combinedSectionsInOrder; // this is an ordered vector, so the sections will be in the order they were added
     unordered_map<string, int> sectionIndices; // section name -> index in combinedSections
     unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedSection; // fileNo -> section index -> combined section index
 
     unordered_map<string, RelocationTable *> combinedRelocationTables; // section name -> combined relocation table
+    vector<RelocationTable *> combinedRelocationTablesInOrder; // this is an ordered vector, so the relocation tables will be in the order they were added
     unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedRelocationTableStart; // fileNo -> section index -> combined relocation table start index
     unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedRelocationTableEnd; // fileNo -> section index -> combined relocation table end index
 

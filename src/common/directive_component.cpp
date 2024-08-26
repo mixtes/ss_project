@@ -69,7 +69,6 @@ int Directive::globalHandler() {
 
 void Directive::setFlagsAndSectionInExternHandler(SymbolTableEntry *entry) {
   entry->isExtern = true;
-  entry->global = true;
   entry->isDefined = true;
   entry->sectionNdx = 0;
 }
