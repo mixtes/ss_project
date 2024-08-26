@@ -59,7 +59,7 @@ void Emulator::printFinishingState() {
     ss << "r" << i;
     string reg = ss.str();
 
-    cout << setw(3) << right << setfill(' ') << reg << "=0x" << hex << setw(8) << cpu.reg[i] << "\t";
+    cout << setw(3) << right << setfill(' ') << reg << "=0x" << hex << setw(8) << setfill('0') << cpu.reg[i] << "\t";
 
     if(i % 4 == 3) cout << endl;
   }
