@@ -6,6 +6,7 @@
 #include <vector>
 #include <unordered_map>
 #include <fstream>
+#include <map>
 using namespace std;
 
 #include "../common/code_component.hpp"
@@ -56,8 +57,6 @@ class Linker {
 
     unordered_map<string, RelocationTable *> combinedRelocationTables; // section name -> combined relocation table
     vector<RelocationTable *> combinedRelocationTablesInOrder; // this is an ordered vector, so the relocation tables will be in the order they were added
-    unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedRelocationTableStart; // fileNo -> section index -> combined relocation table start index
-    unordered_map<int, unordered_map<int, int>> fileToSectionToCombinedRelocationTableEnd; // fileNo -> section index -> combined relocation table end index
 
     unordered_map<int, unordered_map<int, int>> fileToSectionToItsAddressInCombinedSection; // fileNo -> section index -> address in combined section
 
@@ -69,7 +68,7 @@ class Linker {
     bool checkIfSymbolIsInUnresolvedExterns(string symbol);
     void addUnresolvedExtern(UnresolvedExtern *unresolvedExtern);
 
-    void updateRelocationTablesSymbolIndices(int oldSymbolIndex, int newSymbolIndex, int fileNo, int sectionIndex);
+    void updateRelocationTablesSymbolIndices(int oldSymbolIndex, int newSymbolIndex, int fileNo);
 
     void combineSectionsAndRelTabs();
     void calculateAndSetFinalAddressesForSections();
@@ -77,8 +76,11 @@ class Linker {
 
     int finalizeUnresolvedExterns();
 
+    void commitIndicesInRelocationTables();
     void completeRelocations();
     void printHexOutput(ofstream &output);
+
+    map<uint32_t, Section *> sectionsSortedByAddress;
 };
 
 #endif

@@ -27,7 +27,7 @@ void CodeComponent::sewLiteralPoolsToSections() {
     for(auto& literal : section->getLiteralPool()) {
       section->addQuadbyteToSectionContent(literal.first);
       for(auto& offset : literal.second) {
-        displacement = section->getLocationCounter() - offset - 4;
+        displacement = section->getLocationCounter() - offset - 4 - 4; // 4 bytes for the literal is already added, 4 bytes for the instruction mod is PCrelative
         section->changeDisplacementInInstruction(displacement, offset);
       }
     }
@@ -40,10 +40,10 @@ void CodeComponent::sewSymbolOffsetsToSections() {
     for(auto& symbol : section->getSymbolOffsets()) {
 
       section->getRelocationTable()->addEntry(section->getNdx(), section->getLocationCounter(), REL_TYPE_ABS, symbol.first);
-      section->addQuadbyteToSectionContent(symbol.first);
+      section->addQuadbyteToSectionContent(symbolTable->getEntry(symbol.first)->value);
 
       for(auto& offset : symbol.second) {
-        displacement = section->getLocationCounter() - offset - 4;
+        displacement = section->getLocationCounter() - offset - 4 - 4; // 4 bytes for the symbol is already added, 4 bytes for the instruction mod is PCrelative
         section->changeDisplacementInInstruction(displacement, offset);
       }
     }

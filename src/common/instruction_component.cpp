@@ -124,7 +124,7 @@ void Instruction::formInstructionWithForwardReference(Opcode opcode, uint8_t mod
 int Instruction::loadOrJumpOrCallWithLiteral(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, int literal) {
 
   if(valueWithin12BitRange(literal)) {
-    if(opcode == LOAD) operand2 = 0;
+    operand2 = 0;
     formInstructionAndAddToSection(opcode, mod, operand1, operand2, operand3, literal);
   }
   else {
@@ -147,7 +147,7 @@ int Instruction::loadOrJumpOrCallWithSymbol(Opcode opcode, uint8_t mod, uint8_t 
     entry->isDefined = false;
     symbolTable->addEntry(entry);
   }
-  if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx()) {
+  if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && entry->absolute) {
     int literal = entry->value - getCurrentSection()->getLocationCounter();
     loadOrJumpOrCallWithLiteral(opcode, mod, operand1, operand2, operand3, literal);
   }
@@ -211,10 +211,10 @@ int Instruction::iretHandler() {
 int Instruction::callHandler() {
 
   if(operandsList[0]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(CALL, CALL_NO_MOD, 0, 0, 0, stoi(operandsList[0]->value));
+    return loadOrJumpOrCallWithLiteral(CALL, CALL_NO_MOD, PC, 0, 0, stoi(operandsList[0]->value));
   }
   else if(operandsList[0]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(CALL, CALL_NO_MOD, 0, 0, 0, operandsList[0]->value);
+    return loadOrJumpOrCallWithSymbol(CALL, CALL_NO_MOD, PC, 0, 0, operandsList[0]->value);
   }
   else {
     cout << "Invalid operand type for call instruction" << endl;
@@ -231,10 +231,10 @@ int Instruction::retHandler() {
 int Instruction::jmpHandler() {
 
   if(operandsList[0]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_NO_MOD, 0, 0, 0, stoi(operandsList[0]->value));
+    return loadOrJumpOrCallWithLiteral(JMP, JMP_NO_MOD, PC, 0, 0, stoi(operandsList[0]->value));
   }
   else if(operandsList[0]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_NO_MOD, 0, 0, 0, operandsList[0]->value);
+    return loadOrJumpOrCallWithSymbol(JMP, JMP_NO_MOD, PC, 0, 0, operandsList[0]->value);
   }
   else {
     cout << "Invalid operand type for jmp instruction" << endl;
@@ -248,10 +248,10 @@ int Instruction::beqHandler() {
   uint8_t gprB = stoi(operandsList[1]->value);
 
   if(operandsList[2]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_BEQ_MOD, 0, gprA, gprB, stoi(operandsList[2]->value));
+    return loadOrJumpOrCallWithLiteral(JMP, JMP_BEQ_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
   }
   else if(operandsList[2]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_BEQ_MOD, 0, gprA, gprB, operandsList[2]->value);
+    return loadOrJumpOrCallWithSymbol(JMP, JMP_BEQ_MOD, PC, gprA, gprB, operandsList[2]->value);
   }
   else {
     cout << "Invalid operand type for beq instruction" << endl;
@@ -265,10 +265,10 @@ int Instruction::bneHandler() {
   uint8_t gprB = stoi(operandsList[1]->value);
 
   if(operandsList[2]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_BNE_MOD, 0, gprA, gprB, stoi(operandsList[2]->value));
+    return loadOrJumpOrCallWithLiteral(JMP, JMP_BNE_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
   }
   else if(operandsList[2]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_BNE_MOD, 0, gprA, gprB, operandsList[2]->value);
+    return loadOrJumpOrCallWithSymbol(JMP, JMP_BNE_MOD, PC, gprA, gprB, operandsList[2]->value);
   }
   else {
     cout << "Invalid operand type for bne instruction" << endl;
@@ -282,10 +282,10 @@ int Instruction::bgtHandler() {
   uint8_t gprB = stoi(operandsList[1]->value);
 
   if(operandsList[2]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_BGT_MOD, 0, gprA, gprB, stoi(operandsList[2]->value));
+    return loadOrJumpOrCallWithLiteral(JMP, JMP_BGT_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
   }
   else if(operandsList[2]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_BGT_MOD, 0, gprA, gprB, operandsList[2]->value);
+    return loadOrJumpOrCallWithSymbol(JMP, JMP_BGT_MOD, PC, gprA, gprB, operandsList[2]->value);
   }
   else {
     cout << "Invalid operand type for bgt instruction" << endl;
@@ -326,7 +326,7 @@ int Instruction::addHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(ARITM, ARITM_ADD_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(ARITM, ARITM_ADD_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -336,7 +336,7 @@ int Instruction::subHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(ARITM, ARITM_SUB_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(ARITM, ARITM_SUB_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -346,7 +346,7 @@ int Instruction::mulHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(ARITM, ARITM_MUL_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(ARITM, ARITM_MUL_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -356,7 +356,7 @@ int Instruction::divHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(ARITM, ARITM_DIV_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(ARITM, ARITM_DIV_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -375,7 +375,7 @@ int Instruction::andHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(LOGIC, LOGIC_AND_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(LOGIC, LOGIC_AND_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -385,7 +385,7 @@ int Instruction::orHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(LOGIC, LOGIC_OR_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(LOGIC, LOGIC_OR_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -395,7 +395,7 @@ int Instruction::xorHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(LOGIC, LOGIC_XOR_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(LOGIC, LOGIC_XOR_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -405,7 +405,7 @@ int Instruction::shlHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(SHIFT, SHIFT_SHL_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(SHIFT, SHIFT_SHL_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }
@@ -415,7 +415,7 @@ int Instruction::shrHandler() {
   uint8_t gprA = stoi(operandsList[0]->value);
   uint8_t gprB = stoi(operandsList[1]->value);
 
-  formInstructionAndAddToSection(SHIFT, SHIFT_SHR_MOD, gprA, gprA, gprB, 0);
+  formInstructionAndAddToSection(SHIFT, SHIFT_SHR_MOD, gprB, gprB, gprA, 0);
 
   return 0;
 }

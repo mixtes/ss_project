@@ -19,6 +19,8 @@ struct RelocationTableEntry {
   int offset; //offset in the section
   RelocationType relocationType; //type of relocation
   int symbolIndex; //symbol to relocate
+
+  int newSymbolIndex = -1; //used only in linker
 };
 
 class RelocationTable {

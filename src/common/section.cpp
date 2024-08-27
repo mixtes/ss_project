@@ -41,7 +41,7 @@ void Section::addQuadbyteToSectionContentWithOffset(int32_t content, uint32_t of
 
 void Section::changeDisplacementInInstruction(int32_t content, uint32_t offset) {
   //we are only changing the last 12 bits of the instruction
-  this->content[offset + 2] = (content >> 8) & 0x0F;
+  this->content[offset + 2] = (this->content[offset + 2] & 0xF0) | ((content >> 8) & 0x0F);
   this->content[offset + 3] = content & 0xFF;
 }
 

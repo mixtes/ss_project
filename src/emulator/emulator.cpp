@@ -10,8 +10,6 @@ int Emulator::emulate(string input_file) {
 
   initializeMemory(file);
 
-  file.close();
-
   executeProgram();
 
   printFinishingState();
@@ -25,7 +23,7 @@ void Emulator::initializeMemory(ifstream &file) {
   istringstream iss(line);
 
   uint32_t address;
-  uint8_t byte;
+  uint16_t byte;
 
   while(getline(file, line)) {
     // expected format: 00000000: 00 00 00 00 00 00 00 00
@@ -35,11 +33,13 @@ void Emulator::initializeMemory(ifstream &file) {
     iss.ignore(2); // skip ":"
 
     while(iss >> hex >> byte) {
-      memory[address++] = byte;
+      memory[address++] = static_cast<uint8_t>(byte);
     }
 
     iss.clear();
   }
+
+  file.close();
 }
 
 void Emulator::printFinishingState() {
