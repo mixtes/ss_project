@@ -449,7 +449,7 @@ int Instruction::ldHandler() {
     SymbolTableEntry *entry = symbolTable->getEntry(operandValue);
     if(entry != nullptr) {
       int literal = entry->value - getCurrentSection()->getLocationCounter();
-      if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && valueWithin12BitRange(literal)) {
+      if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && valueWithin12BitRange(literal) && entry->absolute) {
         formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, 0, 0, literal);
       }
       else {
@@ -462,7 +462,7 @@ int Instruction::ldHandler() {
       entry->name = operandValue;
       entry->isDefined = false;
       symbolTable->addEntry(entry);
-      formInstructionWithForwardReference(LOAD, LOAD_REGIND_MOD, gpr, PC, 0, operandValue);
+      formInstructionWithForwardReference(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operandValue);
       formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gpr, 0, 0);
     }
   }
@@ -544,7 +544,7 @@ int Instruction::stHandler() {
     SymbolTableEntry *entry = symbolTable->getEntry(operandValue);
     if(entry != nullptr) {
       int literal = entry->value - getCurrentSection()->getLocationCounter();
-      if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && valueWithin12BitRange(literal)) {
+      if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && valueWithin12BitRange(literal) && entry->absolute) {
         formInstructionAndAddToSection(STORE, STORE_MEMDIR_MOD, 0, 0, gpr, literal);
         return 0;
       }
@@ -554,8 +554,15 @@ int Instruction::stHandler() {
       entry->name = operandValue;
       entry->isDefined = false;
       symbolTable->addEntry(entry);
+      formInstructionWithForwardReference(STORE, STORE_MEMIND_MOD, PC, 0, gpr, operandValue);
     }
-    formInstructionWithForwardReference(STORE, STORE_MEMIND_MOD, PC, 0, gpr, operandValue);
+    else if(!entry->isDefined) {
+      formInstructionWithForwardReference(STORE, STORE_MEMIND_MOD, PC, 0, gpr, operandValue);
+    }
+    else {
+      getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
+      formInstructionAndAddToSection(STORE, STORE_MEMIND_MOD, PC, 0, gpr, 0);
+    }  
   }
   else if(operandType == "regindRegister") {
     gprB = stoi(operandValue);
@@ -595,11 +602,16 @@ int Instruction::stHandler() {
         entry = new SymbolTableEntry();
         entry->name = symbol;
         entry->isDefined = false;
-        entry->edgecase12bit = true;
         symbolTable->addEntry(entry);
       }
-      else entry->edgecase12bit = true;
-      formInstructionWithForwardReference(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, symbol);
+      else if(!entry->isDefined) {
+        formInstructionWithForwardReference(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, symbol);
+      }
+      else {
+        getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
+        formInstructionAndAddToSection(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, 0);
+      }
+      entry->edgecase12bit = true;
     }
   }
   else {

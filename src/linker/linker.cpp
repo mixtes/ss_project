@@ -244,7 +244,7 @@ void Linker::calculateAndSetFinalAddressesForSections() {
       predeterminedSectionEnds.push_back(sectionAddresses[sectionName] + combinedSections[sectionName]->getSize());
 
       // determine the starting place of sections without predetermined addresses
-      if(sectionAddresses[sectionName] > maxPredeterminedAddress) {
+      if(predeterminedSectionEnds.back() > maxPredeterminedAddress) {
         maxPredeterminedAddress = sectionAddresses[sectionName];
         placeForNextNonPredeterminedSection = maxPredeterminedAddress + combinedSections[sectionName]->getSize();
       }

@@ -80,4 +80,4 @@ run_all_tests: assemble_tests link_tests emulate_tests
 
 # Clean up
 clean:
-	rm -f $(ASSEMBLER_OBJ_FILES) $(LINKER_OBJ_FILES) $(EMULATOR_OBJ_FILES) $(ASSEMBLER_EXEC) $(LINKER_EXEC) $(EMULATOR_EXEC) $(LEX_C_OUTPUT) $(BISON_C_OUTPUT) $(BISON_H_OUTPUT) $(LEX_H_OUTPUT) *.o ./tests/nivo-a/*.o *.hex
+	rm -f $(ASSEMBLER_OBJ_FILES) $(LINKER_OBJ_FILES) $(EMULATOR_OBJ_FILES) $(ASSEMBLER_EXEC) $(LINKER_EXEC) $(EMULATOR_EXEC) $(LEX_C_OUTPUT) $(BISON_C_OUTPUT) $(BISON_H_OUTPUT) $(LEX_H_OUTPUT) *.o ./tests/nivo-a/*.o ./tests/nivo-b/*.o *.hex
