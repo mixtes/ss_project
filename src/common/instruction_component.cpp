@@ -121,7 +121,7 @@ void Instruction::formInstructionWithForwardReference(Opcode opcode, uint8_t mod
   formInstructionAndAddToSection(opcode, mod, operand1, operand2, operand3, 0);
 }
 
-int Instruction::loadOrJumpOrCallWithLiteral(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, int literal) {
+int Instruction::formInstructionWithLiteral(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, int literal) {
 
   if(valueWithin12BitRange(literal)) {
     operand2 = 0;
@@ -129,16 +129,17 @@ int Instruction::loadOrJumpOrCallWithLiteral(Opcode opcode, uint8_t mod, uint8_t
   }
   else {
     int memMod;
-    opcode == CALL ? memMod = CALL_MEM_MOD : memMod = JMP_MEM_MOD;
-    if(opcode == LOAD) { mod = LOAD_REGIND_MOD; memMod = 0; }
+    if(opcode == CALL) { memMod = CALL_MEM_MOD; mod = mod | memMod; }
+    if(opcode == JMP) { memMod = JMP_MEM_MOD; mod = mod | memMod; }
+    if(opcode == LOAD || opcode == STORE) { mod = LOAD_REGIND_MOD; memMod = 0; }
 
     getCurrentSection()->addLiteralToPool(literal);
-    formInstructionAndAddToSection(opcode, mod | memMod, operand1, operand2, operand3, 0);
+    formInstructionAndAddToSection(opcode, mod, operand1, operand2, operand3, 0);
   }
   return 0;
 }
 
-int Instruction::loadOrJumpOrCallWithSymbol(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, string symbol) {
+int Instruction::formInstructionWithSymbol(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, string symbol) {
 
   SymbolTableEntry *entry = symbolTable->getEntry(symbol);
   if(entry == nullptr) {
@@ -147,23 +148,19 @@ int Instruction::loadOrJumpOrCallWithSymbol(Opcode opcode, uint8_t mod, uint8_t 
     entry->isDefined = false;
     symbolTable->addEntry(entry);
   }
-  if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && entry->absolute) {
-    int literal = entry->value - getCurrentSection()->getLocationCounter();
-    loadOrJumpOrCallWithLiteral(opcode, mod, operand1, operand2, operand3, literal);
+
+  int memMod;
+  if(opcode == CALL) { memMod = CALL_MEM_MOD; mod = mod | memMod; }
+  if(opcode == JMP) { memMod = JMP_MEM_MOD; mod = mod | memMod; }
+  if(opcode == LOAD || opcode == STORE) { mod = LOAD_REGIND_MOD; memMod = 0; }
+
+  if(entry->isDefined) {
+    getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
+    formInstructionAndAddToSection(opcode, mod, operand1, operand2, operand3, 0);
   }
   else {
-    int memMod;
-    opcode == CALL ? memMod = CALL_MEM_MOD : memMod = JMP_MEM_MOD;
-    if(opcode == LOAD) { mod = LOAD_REGIND_MOD; memMod = 0; }
-
-    if(entry->isDefined) {
-      getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
-      formInstructionAndAddToSection(opcode, mod | memMod, operand1, operand2, operand3, 0);
-    }
-    else {
-      formInstructionWithForwardReference(opcode, mod | memMod, operand1, operand2, operand3, symbol);
-    } 
-  }
+    formInstructionWithForwardReference(opcode, mod, operand1, operand2, operand3, symbol);
+  } 
 
   return 0;
 }
@@ -211,10 +208,10 @@ int Instruction::iretHandler() {
 int Instruction::callHandler() {
 
   if(operandsList[0]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(CALL, CALL_NO_MOD, PC, 0, 0, stoi(operandsList[0]->value));
+    return formInstructionWithLiteral(CALL, CALL_NO_MOD, PC, 0, 0, stoi(operandsList[0]->value));
   }
   else if(operandsList[0]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(CALL, CALL_NO_MOD, PC, 0, 0, operandsList[0]->value);
+    return formInstructionWithSymbol(CALL, CALL_NO_MOD, PC, 0, 0, operandsList[0]->value);
   }
   else {
     cout << "Invalid operand type for call instruction" << endl;
@@ -231,10 +228,10 @@ int Instruction::retHandler() {
 int Instruction::jmpHandler() {
 
   if(operandsList[0]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_NO_MOD, PC, 0, 0, stoi(operandsList[0]->value));
+    return formInstructionWithLiteral(JMP, JMP_NO_MOD, PC, 0, 0, stoi(operandsList[0]->value));
   }
   else if(operandsList[0]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_NO_MOD, PC, 0, 0, operandsList[0]->value);
+    return formInstructionWithSymbol(JMP, JMP_NO_MOD, PC, 0, 0, operandsList[0]->value);
   }
   else {
     cout << "Invalid operand type for jmp instruction" << endl;
@@ -248,10 +245,10 @@ int Instruction::beqHandler() {
   uint8_t gprB = stoi(operandsList[1]->value);
 
   if(operandsList[2]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_BEQ_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
+    return formInstructionWithLiteral(JMP, JMP_BEQ_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
   }
   else if(operandsList[2]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_BEQ_MOD, PC, gprA, gprB, operandsList[2]->value);
+    return formInstructionWithSymbol(JMP, JMP_BEQ_MOD, PC, gprA, gprB, operandsList[2]->value);
   }
   else {
     cout << "Invalid operand type for beq instruction" << endl;
@@ -265,10 +262,10 @@ int Instruction::bneHandler() {
   uint8_t gprB = stoi(operandsList[1]->value);
 
   if(operandsList[2]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_BNE_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
+    return formInstructionWithLiteral(JMP, JMP_BNE_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
   }
   else if(operandsList[2]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_BNE_MOD, PC, gprA, gprB, operandsList[2]->value);
+    return formInstructionWithSymbol(JMP, JMP_BNE_MOD, PC, gprA, gprB, operandsList[2]->value);
   }
   else {
     cout << "Invalid operand type for bne instruction" << endl;
@@ -282,10 +279,10 @@ int Instruction::bgtHandler() {
   uint8_t gprB = stoi(operandsList[1]->value);
 
   if(operandsList[2]->type == "literal") {
-    return loadOrJumpOrCallWithLiteral(JMP, JMP_BGT_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
+    return formInstructionWithLiteral(JMP, JMP_BGT_MOD, PC, gprA, gprB, stoi(operandsList[2]->value));
   }
   else if(operandsList[2]->type == "symbol") {
-    return loadOrJumpOrCallWithSymbol(JMP, JMP_BGT_MOD, PC, gprA, gprB, operandsList[2]->value);
+    return formInstructionWithSymbol(JMP, JMP_BGT_MOD, PC, gprA, gprB, operandsList[2]->value);
   }
   else {
     cout << "Invalid operand type for bgt instruction" << endl;
@@ -430,10 +427,10 @@ int Instruction::ldHandler() {
 
   if(operandType == "$literal"){
     operand = stoi(operandValue);
-    loadOrJumpOrCallWithLiteral(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operand);
+    formInstructionWithLiteral(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operand);
   }
   else if(operandType == "$symbol") {
-    loadOrJumpOrCallWithSymbol(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operandValue);
+    formInstructionWithSymbol(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operandValue);
   }
   else if(operandType == "literal") {
     operand = stoi(operandValue);
@@ -441,30 +438,13 @@ int Instruction::ldHandler() {
       formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, 0, 0, operand);
     } 
     else {
-      loadOrJumpOrCallWithLiteral(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operand);//place operand in register
+      formInstructionWithLiteral(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operand);//place operand in register
       formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gpr, 0, 0);//indirect load from register
     }
   }
   else if(operandType == "symbol") {
-    SymbolTableEntry *entry = symbolTable->getEntry(operandValue);
-    if(entry != nullptr) {
-      int literal = entry->value - getCurrentSection()->getLocationCounter();
-      if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && valueWithin12BitRange(literal) && entry->absolute) {
-        formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, 0, 0, literal);
-      }
-      else {
-        loadOrJumpOrCallWithSymbol(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operandValue);
-        formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gpr, 0, 0);
-      }
-    }
-    else {
-      entry = new SymbolTableEntry();
-      entry->name = operandValue;
-      entry->isDefined = false;
-      symbolTable->addEntry(entry);
-      formInstructionWithForwardReference(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operandValue);
-      formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gpr, 0, 0);
-    }
+    formInstructionWithSymbol(LOAD, LOAD_REGDIR_MOD, gpr, PC, 0, operandValue);
+    formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gpr, 0, 0);
   }
   else if(operandType == "register") {
     operand = stoi(operandValue);
@@ -490,28 +470,14 @@ int Instruction::ldHandler() {
     uint8_t gprB = stoi(operandValue);
 
     SymbolTableEntry *entry = symbolTable->getEntry(symbol);
-    if(entry != nullptr && entry->isDefined && entry->absolute) {
-      disp = entry->value;
-      if(valueWithin12BitRange(disp)) {
-        formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gprB, 0, disp);
-        return 0;
-      }
-      else {
-        cout << "Instruction ld: invalid displacement, too large." << endl;
-        return -1;
-      } 
-    }
-    else {
-      if(entry == nullptr) {
-        entry = new SymbolTableEntry();
-        entry->name = symbol;
-        entry->isDefined = false;
-        entry->edgecase12bit = true;
-        symbolTable->addEntry(entry);
-      }
-      else entry->edgecase12bit = true;
+    if(!entry->isDefined) {
       formInstructionWithForwardReference(LOAD, LOAD_REGIND_MOD, gpr, gprB, 0, symbol);
     }
+    else {
+      getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
+      formInstructionAndAddToSection(LOAD, LOAD_REGIND_MOD, gpr, gprB, 0, 0);
+    }
+    entry->edgecase12bit = true;
   }
 
   return 0;
@@ -541,28 +507,7 @@ int Instruction::stHandler() {
     }
   }
   else if(operandType == "symbol") {
-    SymbolTableEntry *entry = symbolTable->getEntry(operandValue);
-    if(entry != nullptr) {
-      int literal = entry->value - getCurrentSection()->getLocationCounter();
-      if(entry->isDefined && entry->sectionNdx == getCurrentSectionNdx() && valueWithin12BitRange(literal) && entry->absolute) {
-        formInstructionAndAddToSection(STORE, STORE_MEMDIR_MOD, 0, 0, gpr, literal);
-        return 0;
-      }
-    }
-    if(entry == nullptr) {
-      entry = new SymbolTableEntry();
-      entry->name = operandValue;
-      entry->isDefined = false;
-      symbolTable->addEntry(entry);
-      formInstructionWithForwardReference(STORE, STORE_MEMIND_MOD, PC, 0, gpr, operandValue);
-    }
-    else if(!entry->isDefined) {
-      formInstructionWithForwardReference(STORE, STORE_MEMIND_MOD, PC, 0, gpr, operandValue);
-    }
-    else {
-      getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
-      formInstructionAndAddToSection(STORE, STORE_MEMIND_MOD, PC, 0, gpr, 0);
-    }  
+    formInstructionWithSymbol(STORE, STORE_MEMIND_MOD, PC, 0, gpr, operandValue);
   }
   else if(operandType == "regindRegister") {
     gprB = stoi(operandValue);
@@ -586,39 +531,14 @@ int Instruction::stHandler() {
     gprB = stoi(operandValue);
 
     SymbolTableEntry *entry = symbolTable->getEntry(symbol);
-    if(entry != nullptr && entry->isDefined && entry->absolute) {
-      disp = entry->value;
-      if(valueWithin12BitRange(disp)) {
-        formInstructionAndAddToSection(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, disp);
-        return 0;
-      }
-      else {
-        cout << "Instruction st: invalid displacement, too large." << endl;
-        return -1;
-      } 
+    if(!entry->isDefined) {
+      formInstructionWithForwardReference(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, symbol);
     }
     else {
-      if(entry == nullptr) {
-        entry = new SymbolTableEntry();
-        entry->name = symbol;
-        entry->isDefined = false;
-        symbolTable->addEntry(entry);
-      }
-      else if(!entry->isDefined) {
-        formInstructionWithForwardReference(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, symbol);
-      }
-      else {
-        getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
-        formInstructionAndAddToSection(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, 0);
-      }
-      entry->edgecase12bit = true;
+      getCurrentSection()->addSymbolOffset(entry->index, getCurrentSection()->getLocationCounter());
+      formInstructionAndAddToSection(STORE, STORE_MEMDIR_MOD, gpr, gprB, 0, 0);
     }
-  }
-  else {
-    cout << "Instruction st: invalid operand." << endl;
-    cout << operandType << endl;
-    cout << operandValue << endl;
-    return -1;
+    entry->edgecase12bit = true;
   }
 
   return 0;

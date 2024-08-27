@@ -107,5 +107,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  cout << "Linker: Linking successful." << endl;
+
   return 0;
 }

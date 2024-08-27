@@ -106,8 +106,8 @@ class Instruction : public CodeComponent{
 
   void formInstructionAndAddToSection(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, int16_t displacement);
   void formInstructionWithForwardReference(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, string symbol);
-  int loadOrJumpOrCallWithLiteral(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, int literal);
-  int loadOrJumpOrCallWithSymbol(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, string symbol);
+  int formInstructionWithLiteral(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, int literal);
+  int formInstructionWithSymbol(Opcode opcode, uint8_t mod, uint8_t operand1, uint8_t operand2, uint8_t operand3, string symbol);
   int detectCsrId(string csr);
 
   int haltHandler();
