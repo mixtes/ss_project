@@ -228,8 +228,8 @@ void Linker::checkForSectionAddressInterference(uint32_t start, uint32_t end) {
 
 void Linker::calculateAndSetFinalAddressesForSections() {
 
-  uint32_t maxPredeterminedAddress = 0x40000000;
-  uint32_t placeForNextNonPredeterminedSection = 0x40000000;
+  uint32_t maxPredeterminedAddress = 0x00000000;
+  uint32_t placeForNextNonPredeterminedSection = 0x00000000;
 
   for(auto& combinedSection : combinedSectionsInOrder) {
     string sectionName = combinedSection->getName();
