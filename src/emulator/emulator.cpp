@@ -10,6 +10,8 @@ int Emulator::emulate(string input_file) {
 
   initializeMemory(file);
 
+  cout << "Program is running..." << endl;
+
   executeProgram();
 
   printFinishingState();
@@ -181,7 +183,7 @@ int Emulator::intHandler(int32_t instruction) {
   writeQuadByteToMemory(address, cpu.reg[PC]);
 
   cpu.creg[CAUSE] = 4;
-  cpu.creg[STATUS] &= ~(STATUS_INTERUPT_MASK);
+  cpu.creg[STATUS] |= STATUS_INTERUPT_MASK;
   cpu.reg[PC] = cpu.creg[HANDLER];
 
   return 0;
@@ -493,7 +495,7 @@ void Emulator::checkForInterrupt() {
     writeQuadByteToMemory(address, cpu.reg[PC]);
 
     cpu.creg[CAUSE] = 3;
-    cpu.creg[STATUS] &= ~(STATUS_INTERUPT_MASK);
+    cpu.creg[STATUS] |= STATUS_INTERUPT_MASK;
     cpu.reg[PC] = cpu.creg[HANDLER];
 
     terminal.interruptHandled();

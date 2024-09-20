@@ -60,13 +60,8 @@ class Linker {
 
     unordered_map<int, unordered_map<int, int>> fileToSectionToItsAddressInCombinedSection; // fileNo -> section index -> address in combined section
 
-    unordered_map<string, vector<UnresolvedExtern *>> unresolvedExterns;
-
     void combineSectionsWithSameNamesAndTheirRelocationTables();
     int combineAllSymbolTables();
-
-    bool checkIfSymbolIsInUnresolvedExterns(string symbol);
-    void addUnresolvedExtern(UnresolvedExtern *unresolvedExtern);
 
     void updateRelocationTablesSymbolIndices(int oldSymbolIndex, int newSymbolIndex, int fileNo);
 
@@ -74,7 +69,7 @@ class Linker {
     void calculateAndSetFinalAddressesForSections();
     void addSectionsToSymbolTable();
 
-    int finalizeUnresolvedExterns();
+    int checkIfThereAreAnyExternsLeft();
 
     void commitIndicesInRelocationTables();
     void completeRelocations();

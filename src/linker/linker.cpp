@@ -106,12 +106,6 @@ int Linker::combineAllSymbolTables() {
           cout << "Error: Multiple global symbols with the same name. " << smallSymbolTableEntry->name << endl;
           return -1;
         }
-        if(bigSymbolTableEntry->global && smallSymbolTableEntry->isExtern && hex_output) {
-          updateRelocationTablesSymbolIndices(  
-            oldSymbolIndex, bigSymbolTableEntry->index, currentFileNo
-          );
-          continue;
-        }
         if((smallSymbolTableEntry->global || smallSymbolTableEntry->isExtern) && !(bigSymbolTableEntry->global || bigSymbolTableEntry->isExtern)) {
           bigSymbolTable->changeSymbolNameToMakeItUnique(bigSymbolTableEntry);
           continue;
@@ -119,20 +113,23 @@ int Linker::combineAllSymbolTables() {
         smallSymbolTable->changeSymbolNameToMakeItUnique(smallSymbolTableEntry);
       }
 
-      SymbolTableEntry *newEntry = new SymbolTableEntry();
-      if(smallSymbolTableEntry->isExtern) {
-        newEntry->index = smallSymbolTableEntry->index;
-        newEntry->sectionNdx = 0;
-        newEntry->isDefined = true;
-        newEntry->isExtern = true;
-        newEntry->name = smallSymbolTableEntry->name;
+      if(smallSymbolTableEntry->isExtern) { // if the new symbol is extern
+        if(bigSymbolTableEntry == nullptr) {
+          SymbolTableEntry *newEntry = new SymbolTableEntry();
+          newEntry->index = smallSymbolTableEntry->index;
+          newEntry->sectionNdx = 0;
+          newEntry->isDefined = true;
+          newEntry->isExtern = true;
+          newEntry->name = smallSymbolTableEntry->name;
 
-        UnresolvedExtern *unresolvedExtern = new UnresolvedExtern();
-        unresolvedExtern->symbolTableEntry = newEntry;
-        unresolvedExtern->fileNo = currentFileNo;
-        addUnresolvedExtern(unresolvedExtern);
+          updateRelocationTablesSymbolIndices(oldSymbolIndex, bigSymbolTable->getSize(), currentFileNo);
+          bigSymbolTable->addEntry(newEntry);
+        }
+        else {
+          updateRelocationTablesSymbolIndices(oldSymbolIndex, bigSymbolTableEntry->index, currentFileNo);
+        }     
       }
-      else {
+      else {  // regular symbol
         int calculatedValue;
         if(smallSymbolTableEntry->absolute) {
           calculatedValue = smallSymbolTableEntry->value;
@@ -147,31 +144,32 @@ int Linker::combineAllSymbolTables() {
           oldSymbolIndex, bigSymbolTable->getSize(), currentFileNo
         );
 
-        //index is given to an entry automatically in addEntry function
-        newEntry->sectionNdx = newSectionNdx;
-        newEntry->name = smallSymbolTableEntry->name;
-        newEntry->value = calculatedValue;
-        newEntry->global = smallSymbolTableEntry->global;
-        newEntry->isDefined = true;
-        bigSymbolTable->addEntry(newEntry);
-
-        if(newEntry->global && checkIfSymbolIsInUnresolvedExterns(newEntry->name)) {
-          for(auto& unresolvedExternEntry : unresolvedExterns[newEntry->name]) {
-            updateRelocationTablesSymbolIndices(  
-              unresolvedExternEntry->symbolTableEntry->index, bigSymbolTable->getSize() - 1, unresolvedExternEntry->fileNo
-            );
-          }
-          unresolvedExterns.erase(newEntry->name);
+        if(smallSymbolTableEntry->global && bigSymbolTableEntry != nullptr) {
+          bigSymbolTableEntry->global = true;
+          bigSymbolTableEntry->value = calculatedValue;
+          bigSymbolTableEntry->isExtern = false;
         }
+        else {
+          //index is given to an entry automatically in addEntry function
+          SymbolTableEntry *newEntry = new SymbolTableEntry();
+          newEntry->sectionNdx = newSectionNdx;
+          newEntry->name = smallSymbolTableEntry->name;
+          newEntry->value = calculatedValue;
+          newEntry->global = smallSymbolTableEntry->global;
+          newEntry->isDefined = true;
+          bigSymbolTable->addEntry(newEntry);
+        } 
       }
     }
   }
 
-  int check = finalizeUnresolvedExterns();
-  if(check < 0) {
-    return 1;
+  if(hex_output) {
+    int check = checkIfThereAreAnyExternsLeft();
+    if(check < 0) {
+      return 1;
+    }
   }
-
+  
   return 0;
 }
 
@@ -277,49 +275,17 @@ void Linker::addSectionsToSymbolTable() {
   }
 }
 
-int Linker::finalizeUnresolvedExterns() {
+int Linker::checkIfThereAreAnyExternsLeft() {
   SymbolTable *bigSymbolTable = SymbolTable::getInstance();
 
-  if(!unresolvedExterns.empty() && hex_output) {
-    for(auto& unresolvedExtern : unresolvedExterns) {
-      cout << "Linking fatal Error: Unresolved external symbol " << unresolvedExtern.first << endl;
-    }
-    return -1;
-  }
-  else {
-    for(auto& unresolvedExtern : unresolvedExterns) {
-      for(auto& unresolvedExternEntry : unresolvedExtern.second) {
-        updateRelocationTablesSymbolIndices(
-          unresolvedExternEntry->symbolTableEntry->index, bigSymbolTable->getSize(), unresolvedExternEntry->fileNo
-        );
-      }
-
-      SymbolTableEntry *newEntry = new SymbolTableEntry();
-      newEntry->name = unresolvedExtern.first;
-      newEntry->isExtern = true;
-      newEntry->isDefined = true;
-      newEntry->sectionNdx = 0;
-      bigSymbolTable->addEntry(newEntry);
+  for(auto& symbolTableEntry : bigSymbolTable->getTable()) {
+    if(symbolTableEntry->isExtern) {
+      cout << "Linking fatal Error: Unresolved external symbol " << symbolTableEntry->name << endl;
+      return -1;
     }
   }
 
   return 0;
-}
-
-bool Linker::checkIfSymbolIsInUnresolvedExterns(string symbol) {
-  
-  if(unresolvedExterns.find(symbol) != unresolvedExterns.end()) {
-    return true;
-  }
-  return false;
-}
-
-void Linker::addUnresolvedExtern(UnresolvedExtern *unresolvedExtern) {
-
-  if(unresolvedExterns.find(unresolvedExtern->symbolTableEntry->name) == unresolvedExterns.end()) {
-    unresolvedExterns[unresolvedExtern->symbolTableEntry->name] = vector<UnresolvedExtern *>();
-  }
-  unresolvedExterns[unresolvedExtern->symbolTableEntry->name].push_back(unresolvedExtern);
 }
 
 void Linker::updateRelocationTablesSymbolIndices(int oldSymbolIndex, int newSymbolIndex, int fileNo) {

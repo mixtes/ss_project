@@ -13,8 +13,8 @@ using namespace std;
 
 #include "../common/instruction_component.hpp"
 
-#define STATUS_TERMINAL_INTERRUPT 0x01
-#define STATUS_TIMER_INTERRUPT 0x02
+#define STATUS_TERMINAL_INTERRUPT 0x02
+#define STATUS_TIMER_INTERRUPT 0x01
 #define STATUS_INTERUPT_MASK 0x04
 
 #define START_ADDRESS 0x40000000
